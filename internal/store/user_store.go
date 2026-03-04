@@ -27,3 +27,12 @@ func (s *UserStore) FindByID(id uuid.UUID) (*models.User, error) {
 	}
 	return &u, nil
 }
+
+func (s *UserStore) FindByProvider(provider, providerID string) (*models.User, error) {
+	var u models.User
+	err := s.db.Where("provider = ? AND provider_id = ?", provider, providerID).First(&u).Error
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
