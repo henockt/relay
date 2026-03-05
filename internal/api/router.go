@@ -39,6 +39,18 @@ func (s *Server) registerRoutes() {
 		authGroup.GET("/google", s.handleGoogleLogin)
 		authGroup.GET("/google/callback", s.handleGoogleCallback)
 	}
+
+	{
+		protected := api.Group("/")
+		protected.Use(s.authMiddleware())
+		{
+			aliases := protected.Group("/aliases")
+			aliases.GET("", s.handleListAliases)
+			aliases.POST("", s.handleCreateAlias)
+			aliases.PATCH("/:id", s.handleUpdateAlias)
+			aliases.DELETE("/:id", s.handleDeleteAlias)
+		}
+	}
 }
 
 func (s *Server) handleHealthz(c *gin.Context) {

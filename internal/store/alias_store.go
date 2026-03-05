@@ -31,3 +31,20 @@ func (s *AliasStore) FindByID(id uuid.UUID) (*models.Alias, error) {
 	}
 	return &a, nil
 }
+
+func (s *AliasStore) Update(a *models.Alias) error {
+	return s.db.Save(a).Error
+}
+
+func (s *AliasStore) Delete(id uuid.UUID) error {
+	return s.db.Delete(&models.Alias{}, "id = ?", id).Error
+}
+
+// FindByAddress is used by the SMTP server to look up an alias on incoming mail.
+func (s *AliasStore) FindByAddress(address string) (*models.Alias, error) {
+	var a models.Alias
+	if err := s.db.Where("address = ?", address).First(&a).Error; err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
