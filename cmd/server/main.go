@@ -16,7 +16,7 @@ func main() {
 		log.Fatal("no .env file found")
 	}
 	cfg := config.Load()
-	
+
 	// create db and stores
 	db, err := store.NewDB(cfg.DatabaseURL)
 	if err != nil {

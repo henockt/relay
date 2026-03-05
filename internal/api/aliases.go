@@ -127,7 +127,7 @@ func generateAddress(domain string) string {
 	buf := make([]byte, 8)
 	rand.Read(buf) //nolint:errcheck
 	for i, b := range buf {
-		buf[i] = charset[int(b) % len(charset)]
+		buf[i] = charset[int(b)%len(charset)]
 	}
 	return fmt.Sprintf("%s@%s", string(buf), domain)
 }

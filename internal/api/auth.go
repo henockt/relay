@@ -1,6 +1,6 @@
 package api
 
-// Standard OAuth login flow 
+// Standard OAuth login flow
 
 import (
 	"context"

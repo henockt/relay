@@ -5,24 +5,24 @@ import (
 )
 
 type Config struct {
-	Port string
-	DatabaseURL string
-	JWTSecret string
-	GoogleClientID string
+	Port               string
+	DatabaseURL        string
+	JWTSecret          string
+	GoogleClientID     string
 	GoogleClientSecret string
-	GoogleRedirectURL string
-	SMTPDomain string
+	GoogleRedirectURL  string
+	SMTPDomain         string
 }
 
 func Load() *Config {
 	return &Config{
-		Port: getEnv("PORT", "3000"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://"),
-		JWTSecret: getEnv("JWT_SECRET", "secret"),
-		GoogleClientID: getEnv("GOOGLE_CLIENT_ID", ""),
+		Port:               getEnv("PORT", "3000"),
+		DatabaseURL:        getEnv("DATABASE_URL", "postgres://"),
+		JWTSecret:          getEnv("JWT_SECRET", "secret"),
+		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
-		GoogleRedirectURL: getEnv("GOOGLE_REDIRECT_URL", ""),
-		SMTPDomain: getEnv("SMTP_DOMAIN", ""),
+		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
+		SMTPDomain:         getEnv("SMTP_DOMAIN", ""),
 	}
 }
 
