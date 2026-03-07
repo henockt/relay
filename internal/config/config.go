@@ -14,6 +14,7 @@ type Config struct {
 	SMTPDomain         string // alias address domain, e.g. "relay.example.org"
 	FrontendURL        string
 	SendGridAPIKey     string
+	SecureCookies      bool
 }
 
 func Load() *Config {
@@ -27,6 +28,7 @@ func Load() *Config {
 		SMTPDomain:         getEnv("SMTP_DOMAIN", "relay.example.com"),
 		SendGridAPIKey:     getEnv("SENDGRID_API_KEY", "dev"),
 		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
+		SecureCookies:      getEnv("SECURE_COOKIES", "false") == "true",
 	}
 }
 

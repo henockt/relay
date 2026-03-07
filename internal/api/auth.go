@@ -30,7 +30,7 @@ func (s *Server) googleOAuthConfig() *oauth2.Config {
 
 func (s *Server) handleGoogleLogin(c *gin.Context) {
 	state := randomState()
-	c.SetCookie("oauth_state", state, 300, "/", "", false, true)
+	c.SetCookie("oauth_state", state, 300, "/", "", s.cfg.SecureCookies, true)
 	c.Redirect(http.StatusTemporaryRedirect, s.googleOAuthConfig().AuthCodeURL(state))
 }
 
