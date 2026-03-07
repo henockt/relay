@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/henockt/relay/internal/config"
 	"github.com/henockt/relay/internal/email"
@@ -34,6 +35,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) registerRoutes() {
+	s.router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{s.cfg.FrontendURL},
+		AllowMethods:     []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}))
+
 	s.router.GET("/healthz", s.handleHealthz)
 
 	api := s.router.Group("/api")

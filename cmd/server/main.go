@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/henockt/relay/internal/api"
 	"github.com/henockt/relay/internal/config"
@@ -27,11 +32,27 @@ func main() {
 	aliasStore := store.NewAliasStore(db)
 	sender := email.NewSender(cfg)
 
-	// create server
-	srv := api.NewServer(cfg, userStore, aliasStore, sender)
-	addr := ":" + cfg.Port
-	log.Printf("Server listening on http://localhost%s", addr)
-	if err := http.ListenAndServe(addr, srv); err != nil {
-		log.Fatalf("server error: %v", err)
+	srv := &http.Server{
+		Addr:    ":" + cfg.Port,
+		Handler: api.NewServer(cfg, userStore, aliasStore, sender),
 	}
+
+	go func() {
+		log.Printf("Server listening on http://localhost:%s", cfg.Port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("shutting down...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("shutdown error: %v", err)
+	}
+	log.Println("stopped")
 }
