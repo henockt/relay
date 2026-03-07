@@ -7,7 +7,7 @@ import (
 )
 
 type Alias struct {
-	ID              uuid.UUID `gorm:"primaryKey"`
+	ID              uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	UserID          uuid.UUID
 	Address         string
 	Label           string

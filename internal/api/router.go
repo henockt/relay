@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/henockt/relay/internal/config"
+	"github.com/henockt/relay/internal/email"
 	"github.com/henockt/relay/internal/store"
 )
 
@@ -13,14 +14,16 @@ type Server struct {
 	cfg        *config.Config
 	userStore  *store.UserStore
 	aliasStore *store.AliasStore
+	sender     email.Sender
 }
 
-func NewServer(cfg *config.Config, userStore *store.UserStore, aliasStore *store.AliasStore) *Server {
+func NewServer(cfg *config.Config, userStore *store.UserStore, aliasStore *store.AliasStore, sender email.Sender) *Server {
 	s := &Server{
 		router:     gin.Default(),
 		cfg:        cfg,
 		userStore:  userStore,
 		aliasStore: aliasStore,
+		sender:     sender,
 	}
 	s.registerRoutes()
 	return s
@@ -39,6 +42,9 @@ func (s *Server) registerRoutes() {
 		authGroup.GET("/google", s.handleGoogleLogin)
 		authGroup.GET("/google/callback", s.handleGoogleCallback)
 	}
+
+	// inbound parse
+	api.POST("/webhooks/email", s.handleInboundEmail)
 
 	{
 		protected := api.Group("/")

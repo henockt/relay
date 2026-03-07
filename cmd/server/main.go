@@ -6,6 +6,7 @@ import (
 
 	"github.com/henockt/relay/internal/api"
 	"github.com/henockt/relay/internal/config"
+	"github.com/henockt/relay/internal/email"
 	"github.com/henockt/relay/internal/store"
 	"github.com/joho/godotenv"
 )
@@ -24,9 +25,10 @@ func main() {
 	}
 	userStore := store.NewUserStore(db)
 	aliasStore := store.NewAliasStore(db)
+	sender := email.NewSender(cfg)
 
 	// create server
-	srv := api.NewServer(cfg, userStore, aliasStore)
+	srv := api.NewServer(cfg, userStore, aliasStore, sender)
 	addr := ":" + cfg.Port
 	log.Printf("Server listening on http://localhost%s", addr)
 	if err := http.ListenAndServe(addr, srv); err != nil {

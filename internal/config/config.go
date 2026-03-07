@@ -11,7 +11,8 @@ type Config struct {
 	GoogleClientID     string
 	GoogleClientSecret string
 	GoogleRedirectURL  string
-	SMTPDomain         string
+	SMTPDomain         string // alias address domain, e.g. "relay.example.org"
+	SendGridAPIKey     string
 }
 
 func Load() *Config {
@@ -22,7 +23,8 @@ func Load() *Config {
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
-		SMTPDomain:         getEnv("SMTP_DOMAIN", ""),
+		SMTPDomain:         getEnv("SMTP_DOMAIN", "relay.localhost"),
+		SendGridAPIKey:     getEnv("SENDGRID_API_KEY", "dev"),
 	}
 }
 
