@@ -57,6 +57,13 @@ func (s *Server) registerRoutes() {
 	{
 		protected := api.Group("/")
 		protected.Use(s.authMiddleware())
+
+		{
+			users := protected.Group("/users/me")
+			users.GET("", s.handleGetMe)
+			users.DELETE("", s.handleDeleteMe)
+		}
+
 		{
 			aliases := protected.Group("/aliases")
 			aliases.GET("", s.handleListAliases)

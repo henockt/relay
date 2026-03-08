@@ -20,6 +20,11 @@ func (s *UserStore) Create(u *models.User) error {
 	return s.db.Create(u).Error
 }
 
+func (s *UserStore) Delete(id uuid.UUID) error {
+	// aliases are cascade-deleted
+	return s.db.Delete(&models.User{}, "id = ?", id).Error
+}
+
 func (s *UserStore) FindByID(id uuid.UUID) (*models.User, error) {
 	var u models.User
 	if err := s.db.First(&u, "id = ?", id).Error; err != nil {
