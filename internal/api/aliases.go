@@ -10,9 +10,22 @@ import (
 	"github.com/henockt/relay/internal/models"
 )
 
+const maxAliasesPerUser = 5
+
 // POST /api/aliases
 func (s *Server) handleCreateAlias(c *gin.Context) {
 	userID := c.MustGet("userID").(uuid.UUID)
+
+	// enforce maxAliasesPerUser
+	count, err := s.aliasStore.CountByUser(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not check alias count"})
+		return
+	}
+	if count >= maxAliasesPerUser {
+		c.JSON(http.StatusForbidden, gin.H{"error": "alias limit reached"})
+		return
+	}
 
 	var body struct {
 		Label string `json:"label"`

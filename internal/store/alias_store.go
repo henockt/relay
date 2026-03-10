@@ -48,3 +48,9 @@ func (s *AliasStore) FindByAddress(address string) (*models.Alias, error) {
 	}
 	return &a, nil
 }
+
+func (s *AliasStore) CountByUser(userID uuid.UUID) (int64, error) {
+	var count int64
+	err := s.db.Model(&models.Alias{}).Where("user_id = ?", userID).Count(&count).Error
+	return count, err
+}
