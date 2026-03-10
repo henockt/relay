@@ -1,0 +1,28 @@
+# Dependency folders
+node_modules
+/web/node_modules
+
+# Next.js build output
+.next
+/web/.next
+out
+
+# Go binaries and cache
+bin
+server
+*.exe
+*.test
+.cache
+
+# Version control
+.git
+.gitignore
+
+# Environment secrets (Crucial for security!)
+.env
+.env.local
+.env.production
+
+# Docker-specific
+Dockerfile
+.dockerignore

@@ -74,7 +74,8 @@ func (s *Server) handleGoogleCallback(c *gin.Context) {
 
 	// redirect with a query param
 	// change to cookie later
-	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback?token=%s", s.cfg.FrontendURL, jwtToken))
+	// c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback?token=%s", s.cfg.FrontendURL, jwtToken))
+	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("/auth/callback?token=%s", jwtToken))
 }
 
 // finds or creates the user and returns a signed JWT.

@@ -10,6 +10,29 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+  
+  server:
+    build: .
+    image: relay
+    container_name: relay
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      HOSTNAME: 0.0.0.0
+      GIN_MODE: release
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}
+      SMTP_DOMAIN: ${SMTP_DOMAIN}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      SECURE_COOKIES: ${SECURE_COOKIES}
 
 volumes:
   postgres_data:

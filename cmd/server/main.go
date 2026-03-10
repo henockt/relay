@@ -34,7 +34,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
-		Handler: api.NewServer(cfg, userStore, aliasStore, sender),
+		Handler: api.NewServer(cfg, db, userStore, aliasStore, sender),
 	}
 
 	go func() {
