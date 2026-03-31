@@ -56,7 +56,9 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 
 	if !alias.Enabled {
 		alias.EmailsBlocked++
-		_ = s.aliasStore.Update(alias)
+		if err := s.aliasStore.Update(alias); err != nil {
+			log.Printf("webhook: failed to update blocked count for alias %s: %v", to, err)
+		}
 		log.Printf("webhook: alias %s is disabled, blocking", to)
 		c.Status(http.StatusOK)
 		return
@@ -78,14 +80,18 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 	fromAddr := fmt.Sprintf("relay+%s@%s", strings.Split(to, "@")[0], s.cfg.SMTPDomain)
 	if err := s.sender.Send(user.Email, fromAddr, subject, forwardedBody, attachments); err != nil {
 		alias.EmailsBlocked++
-		_ = s.aliasStore.Update(alias)
+		if err := s.aliasStore.Update(alias); err != nil {
+			log.Printf("webhook: failed to update blocked count for alias %s: %v", to, err)
+		}
 		log.Printf("webhook: forward failed for alias %s: %v", to, err)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
 
 	alias.EmailsForwarded++
-	_ = s.aliasStore.Update(alias)
+	if err := s.aliasStore.Update(alias); err != nil {
+		log.Printf("webhook: failed to update forwarded count for alias %s: %v", to, err)
+	}
 	log.Printf("webhook: forwarded mail for alias %s → %s", to, user.Email)
 	c.Status(http.StatusOK)
 }
