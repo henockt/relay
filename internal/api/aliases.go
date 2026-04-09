@@ -2,12 +2,15 @@ package api
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/henockt/relay/internal/models"
+	"github.com/henockt/relay/internal/store"
+	"gorm.io/gorm"
 )
 
 const maxAliasesPerUser = 5
@@ -32,9 +35,15 @@ func (s *Server) handleCreateAlias(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&body) // label is optional
 
+	address, err := generateAddress(s.cfg.SMTPDomain, s.aliasStore)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not generate alias address"})
+		return
+	}
+
 	alias := &models.Alias{
 		UserID:  userID,
-		Address: generateAddress(s.cfg.SMTPDomain),
+		Address: address,
 		Label:   body.Label,
 		Enabled: true,
 	}
@@ -134,13 +143,22 @@ func (s *Server) handleDeleteAlias(c *gin.Context) {
 	c.JSON(http.StatusNoContent, nil)
 }
 
-// generateAddress creates a random 8-character local part, e.g. "x7k9m2ab@domain"
-func generateAddress(domain string) string {
+// generateAddress creates a random 8-character local part and retries on collision.
+func generateAddress(domain string, aliasStore *store.AliasStore) (string, error) {
 	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
-	buf := make([]byte, 8)
-	rand.Read(buf) //nolint:errcheck
-	for i, b := range buf {
-		buf[i] = charset[int(b)%len(charset)]
+	for range 5 {
+		buf := make([]byte, 8)
+		if _, err := rand.Read(buf); err != nil {
+			return "", fmt.Errorf("failed to generate random address: %w", err)
+		}
+		for i, b := range buf {
+			buf[i] = charset[int(b)%len(charset)]
+		}
+		addr := fmt.Sprintf("%s@%s", string(buf), domain)
+		_, err := aliasStore.FindByAddress(addr)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return addr, nil
+		}
 	}
-	return fmt.Sprintf("%s@%s", string(buf), domain)
+	return "", errors.New("could not generate unique alias address after 5 attempts")
 }
