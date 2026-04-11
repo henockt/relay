@@ -9,7 +9,8 @@
       "version": "1.25.4"
     },
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "22"
+      "version": "22",
+      "installPackages": "pnpm"
     },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "version": "latest",
