@@ -15,6 +15,7 @@ type Config struct {
 	FrontendURL        string
 	SendGridAPIKey     string
 	SecureCookies      bool
+	WebhookSecret      string
 }
 
 func Load() *Config {
@@ -29,6 +30,7 @@ func Load() *Config {
 		SendGridAPIKey:     getEnv("SENDGRID_API_KEY", "dev"),
 		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
 		SecureCookies:      getEnv("SECURE_COOKIES", "false") == "true",
+		WebhookSecret:      getEnv("WEBHOOK_SECRET", ""),
 	}
 }
 

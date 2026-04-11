@@ -15,6 +15,13 @@ import (
 // handles POST /api/webhooks/email
 // called by SendGrid Inbound Parse when mail arrives
 func (s *Server) handleInboundEmail(c *gin.Context) {
+	webSecret := c.Query("secret")
+	if webSecret != s.cfg.WebhookSecret {
+		log.Printf("webhook: invalid secret")
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
 	parsed, err := inbound.ParseWithAttachments(c.Request)
 	if err != nil || len(parsed.Envelope.To) == 0 {
 		log.Printf("webhook: failed to parse inbound email: %v", err)
@@ -50,7 +57,7 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 	alias, err := s.aliasStore.FindByAddress(to)
 	if err != nil {
 		log.Printf("webhook: unknown alias %s", to)
-		c.Status(http.StatusOK)
+		c.Status(http.StatusOK) // intentional so SendGrid doesn't retry
 		return
 	}
 
@@ -60,7 +67,7 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 			log.Printf("webhook: failed to update blocked count for alias %s: %v", to, err)
 		}
 		log.Printf("webhook: alias %s is disabled, blocking", to)
-		c.Status(http.StatusOK)
+		c.Status(http.StatusOK) // again intentional
 		return
 	}
 
@@ -92,6 +99,6 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 	if err := s.aliasStore.Update(alias); err != nil {
 		log.Printf("webhook: failed to update forwarded count for alias %s: %v", to, err)
 	}
-	log.Printf("webhook: forwarded mail for alias %s → %s", to, user.Email)
+	log.Printf("webhook: forwarded mail for alias %s -> %s", to, user.Email)
 	c.Status(http.StatusOK)
 }

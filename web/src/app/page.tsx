@@ -1,9 +1,19 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Mail } from "lucide-react";
 import Link from "next/link";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+import { API_URL as API } from "@/lib/config";
 
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (localStorage.getItem("relay_token")) {
+      router.replace("/dashboard/aliases");
+    }
+  }, [router]);
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       {/* Left — branding panel */}
