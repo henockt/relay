@@ -38,9 +38,10 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 	}
 
 	// get attachments
+	const maxAttachmentSize = 10 * 1024 * 1024 // 10MB
 	var attachments []email.Attachment
 	for _, a := range parsed.ParsedAttachments {
-		data, err := io.ReadAll(a.File)
+		data, err := io.ReadAll(io.LimitReader(a.File, maxAttachmentSize))
 		if err != nil {
 			continue
 		}
