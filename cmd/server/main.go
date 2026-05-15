@@ -30,11 +30,12 @@ func main() {
 	}
 	userStore := store.NewUserStore(db)
 	aliasStore := store.NewAliasStore(db)
+	replyThreadStore := store.NewReplyThreadStore(db)
 	sender := email.NewSender(cfg)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
-		Handler: api.NewServer(cfg, db, userStore, aliasStore, sender),
+		Handler: api.NewServer(cfg, db, userStore, aliasStore, replyThreadStore, sender),
 	}
 
 	go func() {

@@ -5,7 +5,7 @@
 <!-- ![CI](https://github.com/henockt/relay/actions/workflows/ci.yml/badge.svg) -->
 <!-- ![Docker Image Size](https://img.shields.io/docker/image-size/henockt/relay/latest) -->
 
-Create disposable email aliases that forward to your real inbox. Keep your address private, disable aliases you no longer need, and stay in control.
+Create disposable email aliases that forward to your real inbox. Keep your address private, reply anonymously, disable aliases you no longer need, and stay in control.
 
 ![screenshot placeholder](docs/screenshot.png)
 

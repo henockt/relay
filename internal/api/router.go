@@ -14,22 +14,31 @@ import (
 )
 
 type Server struct {
-	router     *gin.Engine
-	cfg        *config.Config
-	db         *gorm.DB
-	userStore  *store.UserStore
-	aliasStore *store.AliasStore
-	sender     email.Sender
+	router           *gin.Engine
+	cfg              *config.Config
+	db               *gorm.DB
+	userStore        *store.UserStore
+	aliasStore       *store.AliasStore
+	replyThreadStore *store.ReplyThreadStore
+	sender           email.Sender
 }
 
-func NewServer(cfg *config.Config, db *gorm.DB, userStore *store.UserStore, aliasStore *store.AliasStore, sender email.Sender) *Server {
+func NewServer(
+	cfg *config.Config,
+	db *gorm.DB,
+	userStore *store.UserStore,
+	aliasStore *store.AliasStore,
+	replyThreadStore *store.ReplyThreadStore,
+	sender email.Sender,
+) *Server {
 	s := &Server{
-		router:     gin.Default(),
-		cfg:        cfg,
-		db:         db,
-		userStore:  userStore,
-		aliasStore: aliasStore,
-		sender:     sender,
+		router:           gin.Default(),
+		cfg:              cfg,
+		db:               db,
+		userStore:        userStore,
+		aliasStore:       aliasStore,
+		replyThreadStore: replyThreadStore,
+		sender:           sender,
 	}
 	s.registerRoutes()
 	return s

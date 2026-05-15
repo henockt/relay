@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/henockt/relay/internal/config"
 	sendgrid "github.com/sendgrid/sendgrid-go"
@@ -17,9 +18,20 @@ type Attachment struct {
 	Content     []byte
 }
 
+type EmailMessage struct {
+	To          string
+	From        string
+	Subject     string
+	Body        string
+	ReplyTo     string
+	InReplyTo   string
+	References  []string
+	Attachments []Attachment
+}
+
 // interface the webhook handler uses to forward email
 type Sender interface {
-	Send(to, from, subject, body string, attachments []Attachment) error
+	Send(message EmailMessage) error
 }
 
 // returns the right implementation based on config
@@ -33,8 +45,15 @@ func NewSender(cfg *config.Config) Sender {
 // logSender prints to stdout
 type logSender struct{}
 
-func (l *logSender) Send(to, from, subject, body string, attachments []Attachment) error {
-	log.Printf("[EMAIL] to=%s from=%s subject=%q attachments=%d (log-only, not sent)", to, from, subject, len(attachments))
+func (l *logSender) Send(message EmailMessage) error {
+	log.Printf(
+		"[EMAIL] to=%s from=%s reply_to=%s subject=%q attachments=%d (log-only, not sent)",
+		message.To,
+		message.From,
+		message.ReplyTo,
+		message.Subject,
+		len(message.Attachments),
+	)
 	return nil
 }
 
@@ -43,17 +62,27 @@ type sendGridSender struct {
 	apiKey string
 }
 
-func (s *sendGridSender) Send(to, from, subject, body string, attachments []Attachment) error {
+func (s *sendGridSender) Send(message EmailMessage) error {
 	m := mail.NewV3Mail()
-	m.SetFrom(mail.NewEmail("", from))
-	m.Subject = subject
+	m.SetFrom(mail.NewEmail("", message.From))
+	m.Subject = message.Subject
 
 	p := mail.NewPersonalization()
-	p.AddTos(mail.NewEmail("", to))
+	p.AddTos(mail.NewEmail("", message.To))
 	m.AddPersonalizations(p)
-	m.AddContent(mail.NewContent("text/plain", body))
+	m.AddContent(mail.NewContent("text/plain", message.Body))
 
-	for _, a := range attachments {
+	if message.ReplyTo != "" {
+		m.SetReplyTo(mail.NewEmail("", message.ReplyTo))
+	}
+	if message.InReplyTo != "" {
+		m.SetHeader("In-Reply-To", message.InReplyTo)
+	}
+	if len(message.References) > 0 {
+		m.SetHeader("References", strings.Join(compact(message.References), " "))
+	}
+
+	for _, a := range message.Attachments {
 		att := mail.NewAttachment()
 		att.SetContent(base64.StdEncoding.EncodeToString(a.Content))
 		att.SetType(a.ContentType)
@@ -70,4 +99,15 @@ func (s *sendGridSender) Send(to, from, subject, body string, attachments []Atta
 		return fmt.Errorf("sendgrid returned %d: %s", resp.StatusCode, resp.Body)
 	}
 	return nil
+}
+
+func compact(values []string) []string {
+	var out []string
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		out = append(out, value)
+	}
+	return out
 }
