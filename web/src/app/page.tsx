@@ -75,7 +75,7 @@ export default function Home() {
           </Link>
 
           <p className="text-center text-xs text-muted-foreground">
-            By signing in you agree to keep your aliases tidy.
+            By signing in, you agree to keep your aliases tidy.
           </p>
         </div>
       </div>

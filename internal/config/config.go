@@ -13,9 +13,11 @@ type Config struct {
 	GoogleRedirectURL  string
 	SMTPDomain         string // alias address domain, e.g. "relay.example.org"
 	FrontendURL        string
-	SendGridAPIKey     string
+	MailgunAPIKey      string
+	MailgunDomain      string // Mailgun sending domain, usually the same as SMTPDomain
+	MailgunAPIBase     string // https://api.mailgun.net/v3, or the EU endpoint
+	MailgunSigningKey  string // verifies inbound webhook signatures
 	SecureCookies      bool
-	WebhookSecret      string
 }
 
 func Load() *Config {
@@ -27,10 +29,12 @@ func Load() *Config {
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
 		SMTPDomain:         getEnv("SMTP_DOMAIN", "relay.example.com"),
-		SendGridAPIKey:     getEnv("SENDGRID_API_KEY", "dev"),
 		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
+		MailgunAPIKey:      getEnv("MAILGUN_API_KEY", "dev"),
+		MailgunDomain:      getEnv("MAILGUN_DOMAIN", getEnv("SMTP_DOMAIN", "relay.example.com")),
+		MailgunAPIBase:     getEnv("MAILGUN_API_BASE", "https://api.mailgun.net/v3"),
+		MailgunSigningKey:  getEnv("MAILGUN_SIGNING_KEY", ""),
 		SecureCookies:      getEnv("SECURE_COOKIES", "false") == "true",
-		WebhookSecret:      getEnv("WEBHOOK_SECRET", ""),
 	}
 }
 

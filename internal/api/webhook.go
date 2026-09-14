@@ -1,11 +1,15 @@
 package api
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -13,58 +17,53 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/henockt/relay/internal/email"
 	"github.com/henockt/relay/internal/models"
-	"github.com/sendgrid/sendgrid-go/helpers/inbound"
 )
 
 const (
 	maxAttachmentSize = 10 * 1024 * 1024
 	replyTokenTTL     = 30 * 24 * time.Hour
+	// how much of the multipart body to hold in memory before spilling to disk
+	multipartMemory = 8 * 1024 * 1024
 )
 
 // handles POST /api/webhooks/email
-// called by SendGrid Inbound Parse when mail arrives
+// called by a Mailgun inbound route when mail arrives
 func (s *Server) handleInboundEmail(c *gin.Context) {
-	webSecret := c.Query("secret")
-	if webSecret != s.cfg.WebhookSecret {
-		log.Printf("webhook: invalid secret")
-		c.Status(http.StatusUnauthorized)
-		return
-	}
-
-	parsed, err := inbound.ParseWithAttachments(c.Request)
-	if err != nil || len(parsed.Envelope.To) == 0 {
+	if err := c.Request.ParseMultipartForm(multipartMemory); err != nil {
 		log.Printf("webhook: failed to parse inbound email: %v", err)
 		c.Status(http.StatusBadRequest)
 		return
 	}
+	defer func() {
+		if c.Request.MultipartForm != nil {
+			_ = c.Request.MultipartForm.RemoveAll()
+		}
+	}()
 
-	// get to, subject, body
-	to := strings.ToLower(parsed.Envelope.To[0])
-	subject := parsed.ParsedValues["subject"]
-	body := parsed.TextBody
+	if !s.verifyMailgunSignature(c) {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	// "recipient" and "sender" are the envelope addresses, the From/To headers
+	// can differ and are not what aliases are keyed on.
+	to := strings.ToLower(strings.TrimSpace(c.Request.FormValue("recipient")))
+	if to == "" {
+		log.Printf("webhook: inbound email has no recipient")
+		c.Status(http.StatusBadRequest)
+		return
+	}
+	from := strings.TrimSpace(c.Request.FormValue("sender"))
+	subject := c.Request.FormValue("subject")
+	body := c.Request.FormValue("body-plain")
 	if body == "" {
-		body = parsed.Body["text/html"]
+		body = c.Request.FormValue("body-html")
 	}
 	if body == "" {
 		body = "(no body)"
 	}
 
-	// get attachments
-	var attachments []email.Attachment
-	for _, a := range parsed.ParsedAttachments {
-		data, err := io.ReadAll(io.LimitReader(a.File, maxAttachmentSize))
-		if err != nil {
-			continue
-		}
-		attachments = append(attachments, email.Attachment{
-			Filename:    a.Filename,
-			ContentType: a.ContentType,
-			Content:     data,
-		})
-	}
-	if len(attachments) > 0 {
-		log.Printf("webhook: parsed %d attachment(s) for %s", len(attachments), to)
-	}
+	attachments := collectAttachments(c.Request.MultipartForm, to)
 
 	if replyToken, ok := parseReplyTokenAddress(to, s.cfg.SMTPDomain); ok {
 		s.handleReplyForward(c, replyToken, subject, body, attachments)
@@ -74,7 +73,7 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 	alias, err := s.aliasStore.FindByAddress(to)
 	if err != nil {
 		log.Printf("webhook: unknown alias %s", to)
-		c.Status(http.StatusOK) // intentional so SendGrid doesn't retry
+		c.Status(http.StatusOK) // intentional so Mailgun does not retry
 		return
 	}
 
@@ -84,7 +83,7 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 			log.Printf("webhook: failed to update blocked count for alias %s: %v", to, err)
 		}
 		log.Printf("webhook: alias %s is disabled, blocking", to)
-		c.Status(http.StatusOK) // again intentional
+		c.Status(http.StatusOK) // again intentional, a disabled alias is not a delivery failure
 		return
 	}
 
@@ -98,7 +97,7 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 	// Prepend relay metadata to the body so the user knows which alias received it.
 	forwardedBody := fmt.Sprintf(
 		"--- Forwarded via Relay ---\nAlias: %s\nOriginal from: %s\n---\n\n%s",
-		to, parsed.Envelope.From, body,
+		to, from, body,
 	)
 
 	replyToken, err := generateReplyToken()
@@ -111,8 +110,8 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 	replyThread := &models.ReplyThread{
 		ReplyToken:        replyToken,
 		AliasID:           alias.ID,
-		OriginalFrom:      parsed.Envelope.From,
-		OriginalMessageID: extractMessageID(parsed),
+		OriginalFrom:      from,
+		OriginalMessageID: extractMessageID(c.Request),
 		ExpiresAt:         time.Now().Add(replyTokenTTL),
 	}
 	if err := s.replyThreadStore.Create(replyThread); err != nil {
@@ -236,23 +235,91 @@ func parseReplyTokenAddress(address, domain string) (string, bool) {
 	return token, true
 }
 
-func extractMessageID(parsed *inbound.ParsedEmail) string {
-	if messageID := findHeader(parsed.Headers, "Message-ID"); messageID != "" {
-		return messageID
+// Mailgun numbers attachment parts attachment-1, attachment-2, ... Anything
+// over maxAttachmentSize is truncated rather than dropping the whole message.
+func collectAttachments(form *multipart.Form, to string) []email.Attachment {
+	if form == nil {
+		return nil
 	}
-	if messageID := findHeader(parsed.ParsedValues, "Message-ID"); messageID != "" {
-		return messageID
+
+	var attachments []email.Attachment
+	for field, headers := range form.File {
+		if !strings.HasPrefix(field, "attachment-") {
+			continue
+		}
+		for _, header := range headers {
+			file, err := header.Open()
+			if err != nil {
+				log.Printf("webhook: could not open attachment %s for %s: %v", header.Filename, to, err)
+				continue
+			}
+			data, err := io.ReadAll(io.LimitReader(file, maxAttachmentSize))
+			_ = file.Close()
+			if err != nil {
+				log.Printf("webhook: could not read attachment %s for %s: %v", header.Filename, to, err)
+				continue
+			}
+			attachments = append(attachments, email.Attachment{
+				Filename:    header.Filename,
+				ContentType: header.Header.Get("Content-Type"),
+				Content:     data,
+			})
+		}
 	}
-	if messageID := findHeader(parsed.ParsedValues, "Message-Id"); messageID != "" {
-		return messageID
+
+	if len(attachments) > 0 {
+		log.Printf("webhook: parsed %d attachment(s) for %s", len(attachments), to)
 	}
-	return ""
+	return attachments
 }
 
-func findHeader(values map[string]string, name string) string {
-	for key, value := range values {
-		if strings.EqualFold(key, name) {
-			return strings.TrimSpace(value)
+// Mailgun signs each webhook as HMAC-SHA256(timestamp + token) using the
+// signing key. Note there is deliberately no timestamp freshness check. Mailgun
+// retries a failed webhook for up to 8 hours reusing the original signature, so
+// a replay window would reject legitimate retries.
+func (s *Server) verifyMailgunSignature(c *gin.Context) bool {
+	if s.cfg.MailgunSigningKey == "" {
+		log.Printf("webhook: MAILGUN_SIGNING_KEY is not set, refusing inbound email")
+		return false
+	}
+
+	timestamp := c.Request.FormValue("timestamp")
+	token := c.Request.FormValue("token")
+	signature := c.Request.FormValue("signature")
+	if timestamp == "" || token == "" || signature == "" {
+		log.Printf("webhook: inbound email is missing signature fields")
+		return false
+	}
+
+	mac := hmac.New(sha256.New, []byte(s.cfg.MailgunSigningKey))
+	mac.Write([]byte(timestamp + token))
+	expected := mac.Sum(nil)
+
+	provided, err := hex.DecodeString(signature)
+	if err != nil {
+		log.Printf("webhook: inbound email has a malformed signature")
+		return false
+	}
+	if !hmac.Equal(expected, provided) {
+		log.Printf("webhook: invalid inbound email signature")
+		return false
+	}
+	return true
+}
+
+func extractMessageID(r *http.Request) string {
+	if messageID := strings.TrimSpace(r.FormValue("Message-Id")); messageID != "" {
+		return messageID
+	}
+	// fall back to the raw MIME headers, which Mailgun sends as a JSON array of
+	// [name, value] pairs
+	var headers [][]string
+	if err := json.Unmarshal([]byte(r.FormValue("message-headers")), &headers); err != nil {
+		return ""
+	}
+	for _, header := range headers {
+		if len(header) == 2 && strings.EqualFold(header[0], "Message-Id") {
+			return strings.TrimSpace(header[1])
 		}
 	}
 	return ""

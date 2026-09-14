@@ -18,7 +18,7 @@ cp .env.example .env
 # fill in .env
 
 go run ./cmd/server
-cd web && npm install && npm run dev
+cd web && pnpm install && pnpm dev
 ```
 
 Or with Docker:
@@ -40,8 +40,10 @@ Copy `.env.example` to `.env` and fill in the values.
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `GOOGLE_REDIRECT_URL` | OAuth callback URL |
 | `SMTP_DOMAIN` | Domain for alias addresses |
-| `SENDGRID_API_KEY` | SendGrid API key |
-| `WEBHOOK_SECRET` | Secret for inbound email webhooks |
+| `MAILGUN_API_KEY` | Mailgun private API key |
+| `MAILGUN_DOMAIN` | Mailgun sending domain (defaults to `SMTP_DOMAIN`) |
+| `MAILGUN_SIGNING_KEY` | Mailgun webhook signing key, verifies inbound mail |
+| `MAILGUN_API_BASE` | Mailgun API base URL (use the EU endpoint for EU accounts) |
 | `FRONTEND_URL` | Public URL of the app |
 | `NEXT_PUBLIC_API_URL` | API URL (if backend hosted separately) |
 | `SECURE_COOKIES` | Set to `false` for local dev |

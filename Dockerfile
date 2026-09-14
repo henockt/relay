@@ -31,4 +31,4 @@ COPY --from=web-builder /web/.next/static ./web-standalone/.next/static
 COPY --from=web-builder /web/public ./web-standalone/public
 
 EXPOSE 8080
-CMD PORT=3000 node /app/web-standalone/server.js & exec /app/server
+CMD HOSTNAME=0.0.0.0 PORT=3000 node /app/web-standalone/server.js & exec /app/server
