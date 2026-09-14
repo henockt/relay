@@ -1,10 +1,30 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mail } from "lucide-react";
-import Link from "next/link";
 import { API_URL as API } from "@/lib/config";
+
+// Codes come from the Go callback handler, which redirects here instead of
+// rendering JSON at a browser navigation.
+const LOGIN_ERRORS: Record<string, string> = {
+  expired: "Your sign-in took too long and expired. Please try again.",
+  failed: "We couldn't sign you in. Please try again.",
+};
+
+function LoginError() {
+  const error = useSearchParams().get("error");
+  if (!error) return null;
+
+  return (
+    <p
+      role="alert"
+      className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+    >
+      {LOGIN_ERRORS[error] ?? LOGIN_ERRORS.failed}
+    </p>
+  );
+}
 
 export default function Home() {
   const router = useRouter();
@@ -66,13 +86,18 @@ export default function Home() {
             </p>
           </div>
 
-          <Link
+          <Suspense fallback={null}>
+            <LoginError />
+          </Suspense>
+
+          {/* plain anchor, not next/link: this is a server redirect rather  */}
+          <a
             href={`${API}/api/auth/google`}
             className="flex w-full items-center justify-center gap-3 rounded-md border border-input bg-background px-4 py-2.5 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             <GoogleIcon />
             Continue with Google
-          </Link>
+          </a>
 
           <p className="text-center text-xs text-muted-foreground">
             By signing in, you agree to keep your aliases tidy.

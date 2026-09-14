@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -17,6 +18,11 @@ import (
 	"golang.org/x/oauth2/google"
 	"gorm.io/gorm"
 )
+
+func (s *Server) failLogin(c *gin.Context, reason string, err error) {
+	log.Printf("auth: login failed (%s): %v", reason, err)
+	c.Redirect(http.StatusTemporaryRedirect, "/?error="+reason)
+}
 
 func (s *Server) googleOAuthConfig() *oauth2.Config {
 	return &oauth2.Config{
@@ -28,16 +34,21 @@ func (s *Server) googleOAuthConfig() *oauth2.Config {
 	}
 }
 
+const stateCookie = "oauth_state"
+
 func (s *Server) handleGoogleLogin(c *gin.Context) {
 	state := randomState()
-	c.SetCookie("oauth_state", state, 300, "/", "", s.cfg.SecureCookies, true)
+	c.SetCookie(stateCookie, state, 300, "/", "", s.cfg.SecureCookies, true)
 	c.Redirect(http.StatusTemporaryRedirect, s.googleOAuthConfig().AuthCodeURL(state))
 }
 
 func (s *Server) handleGoogleCallback(c *gin.Context) {
-	// anti-CSRF
-	if err := verifyState(c); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "state mismatch"})
+	// anti-CSRF. The state cookie is one use, so drop it before branching
+	// this has to happen before any redirect writes the response header.
+	stateErr := verifyState(c)
+	c.SetCookie(stateCookie, "", -1, "/", "", s.cfg.SecureCookies, true)
+	if stateErr != nil {
+		s.failLogin(c, "expired", stateErr)
 		return
 	}
 
@@ -45,14 +56,14 @@ func (s *Server) handleGoogleCallback(c *gin.Context) {
 	cfg := s.googleOAuthConfig()
 	oauthToken, err := cfg.Exchange(context.Background(), c.Query("code"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "code exchange failed"})
+		s.failLogin(c, "failed", err)
 		return
 	}
 
 	// fetch user info from Google API
 	resp, err := cfg.Client(context.Background(), oauthToken).Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user info"})
+		s.failLogin(c, "failed", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -62,13 +73,13 @@ func (s *Server) handleGoogleCallback(c *gin.Context) {
 		Email string `json:"email"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse user info"})
+		s.failLogin(c, "failed", err)
 		return
 	}
 
 	jwtToken, err := s.upsertUserAndIssue("google", info.ID, info.Email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "auth failed"})
+		s.failLogin(c, "failed", err)
 		return
 	}
 
