@@ -29,7 +29,9 @@ const (
 // handles POST /api/webhooks/email
 // called by a Mailgun inbound route when mail arrives
 func (s *Server) handleInboundEmail(c *gin.Context) {
-	if err := c.Request.ParseMultipartForm(multipartMemory); err != nil {
+	// Mailgun only posts multipart/form-data when the message carries
+	// attachments.
+	if err := parseInboundForm(c.Request); err != nil {
 		log.Printf("webhook: failed to parse inbound email: %v", err)
 		c.Status(http.StatusBadRequest)
 		return
@@ -233,6 +235,13 @@ func parseReplyTokenAddress(address, domain string) (string, bool) {
 		return "", false
 	}
 	return token, true
+}
+
+func parseInboundForm(r *http.Request) error {
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		return r.ParseMultipartForm(multipartMemory)
+	}
+	return r.ParseForm()
 }
 
 // Mailgun numbers attachment parts attachment-1, attachment-2, ... Anything
