@@ -240,11 +240,10 @@ func parseReplyTokenAddress(address, domain string) (string, bool) {
 	return token, true
 }
 
-// An anonymous reply must carry only what the user typed. Mail clients quote
-// the whole message they are replying to, which here is the forwarded mail
-// complete with its relay metadata, so sending the raw body would echo that
-// back to the stranger. Mailgun's stripped-text already has quoted history and
-// signatures removed; when it is missing, cut the body at our own marker.
+// An anonymous reply must carry only what the user typed.
+// Mailgun's stripped-text already has quoted history and
+// signatures removed. when it is missing, cut the body 
+// at the marker.
 func replyBody(stripped, full string) string {
 	body := stripped
 	if strings.TrimSpace(body) == "" {

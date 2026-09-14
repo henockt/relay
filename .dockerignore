@@ -19,9 +19,8 @@ server
 .gitignore
 
 # Environment secrets (Crucial for security!)
-.env
-.env.local
-.env.production
+.env*
+!.env.example
 
 # Docker-specific
 Dockerfile

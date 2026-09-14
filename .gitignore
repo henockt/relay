@@ -25,11 +25,10 @@ go.work
 go.work.sum
 
 # env files
-.env
-.env.local
-.env.production
-.env.*.local
-.env.prod.yaml
+# .env* catches the variants an explicit list misses (.env.bak, .env.old,
+# .env.save), which are exactly what secret scanners probe for
+.env*
+!.env.example
 
 # Editor/IDE
 # .idea/
