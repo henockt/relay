@@ -22,6 +22,8 @@ import (
 const (
 	maxAttachmentSize = 10 * 1024 * 1024
 	replyTokenTTL     = 30 * 24 * time.Hour
+	// prepended to forwarded mail, and the cut point when relaying a reply
+	forwardedMarker = "--- Forwarded via Relay ---"
 	// how much of the multipart body to hold in memory before spilling to disk
 	multipartMemory = 8 * 1024 * 1024
 )
@@ -68,7 +70,8 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 	attachments := collectAttachments(c.Request.MultipartForm, to)
 
 	if replyToken, ok := parseReplyTokenAddress(to, s.cfg.SMTPDomain); ok {
-		s.handleReplyForward(c, replyToken, subject, body, attachments)
+		stripped := c.Request.FormValue("stripped-text")
+		s.handleReplyForward(c, replyToken, subject, replyBody(stripped, body), attachments)
 		return
 	}
 
@@ -98,8 +101,8 @@ func (s *Server) handleInboundEmail(c *gin.Context) {
 
 	// Prepend relay metadata to the body so the user knows which alias received it.
 	forwardedBody := fmt.Sprintf(
-		"--- Forwarded via Relay ---\nAlias: %s\nOriginal from: %s\n---\n\n%s",
-		to, from, body,
+		"%s\nAlias: %s\nOriginal from: %s\n---\n\n%s",
+		forwardedMarker, to, from, body,
 	)
 
 	replyToken, err := generateReplyToken()
@@ -235,6 +238,35 @@ func parseReplyTokenAddress(address, domain string) (string, bool) {
 		return "", false
 	}
 	return token, true
+}
+
+// An anonymous reply must carry only what the user typed. Mail clients quote
+// the whole message they are replying to, which here is the forwarded mail
+// complete with its relay metadata, so sending the raw body would echo that
+// back to the stranger. Mailgun's stripped-text already has quoted history and
+// signatures removed; when it is missing, cut the body at our own marker.
+func replyBody(stripped, full string) string {
+	body := stripped
+	if strings.TrimSpace(body) == "" {
+		body = full
+	}
+	body = strings.TrimSpace(truncateAtMarker(body))
+	if body == "" {
+		return "(no body)"
+	}
+	return body
+}
+
+// the marker usually reappears quoted ("> --- Forwarded via Relay ---"), so
+// match anywhere in the line rather than at its start
+func truncateAtMarker(body string) string {
+	lines := strings.Split(body, "\n")
+	for i, line := range lines {
+		if strings.Contains(line, forwardedMarker) {
+			return strings.Join(lines[:i], "\n")
+		}
+	}
+	return body
 }
 
 func parseInboundForm(r *http.Request) error {
