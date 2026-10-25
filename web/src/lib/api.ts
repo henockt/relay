@@ -34,6 +34,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
+  if (res.status === 401) {
+    // token is invalid or its user no longer exists: log out
+    localStorage.removeItem("relay_token");
+    window.location.replace("/");
+    throw new Error("401: unauthorized");
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`${res.status}: ${text}`);
