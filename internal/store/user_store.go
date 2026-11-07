@@ -33,6 +33,19 @@ func (s *UserStore) FindByID(id uuid.UUID) (*models.User, error) {
 	return &u, nil
 }
 
+func (s *UserStore) FindByEmail(email string) (*models.User, error) {
+	var u models.User
+	if err := s.db.First(&u, "LOWER(email) = LOWER(?)", email).Error; err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+func (s *UserStore) UpdateProvider(id uuid.UUID, provider, providerID string) error {
+	return s.db.Model(&models.User{}).Where("id = ?", id).
+		Updates(map[string]any{"provider": provider, "provider_id": providerID}).Error
+}
+
 func (s *UserStore) FindByProvider(provider, providerID string) (*models.User, error) {
 	var u models.User
 	err := s.db.Where("provider = ? AND provider_id = ?", provider, providerID).First(&u).Error

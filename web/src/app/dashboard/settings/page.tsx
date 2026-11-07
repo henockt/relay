@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 import toast, { Toaster } from "react-hot-toast";
 import {
   Card,
@@ -24,29 +24,24 @@ import {
 import { api, type User } from "@/lib/api";
 
 export default function SettingsPage() {
-  const router = useRouter();
+  const clerk = useClerk();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem("relay_token")) {
-      router.replace("/");
-      return;
-    }
     api.getMe()
       .then(setUser)
       .catch(() => toast.error("Failed to load account info"))
       .finally(() => setLoading(false));
-  }, [router]);
+  }, []);
 
   async function handleDeleteAccount() {
     setDeleting(true);
     try {
       await api.deleteMe();
-      localStorage.removeItem("relay_token");
-      router.replace("/");
       toast.success("Account deleted");
+      await clerk.signOut({ redirectUrl: "/" });
     } catch {
       toast.error("Failed to delete account");
       setDeleting(false);
@@ -54,8 +49,7 @@ export default function SettingsPage() {
   }
 
   function signOut() {
-    localStorage.removeItem("relay_token");
-    router.replace("/");
+    clerk.signOut({ redirectUrl: "/" });
   }
 
   return (

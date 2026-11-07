@@ -18,13 +18,22 @@ export interface User {
   created_at: string;
 }
 
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("relay_token");
+// Clerk owns the session. AuthGate wires these up before any page calls
+// the API, so requests always carry a fresh short-lived session token.
+let auth: {
+  getToken: () => Promise<string | null>;
+  signOut: (redirectUrl: string) => Promise<unknown>;
+} = {
+  getToken: async () => null,
+  signOut: async (redirectUrl) => window.location.replace(redirectUrl),
+};
+
+export function configureAuth(next: typeof auth) {
+  auth = next;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getToken();
+  const token = await auth.getToken();
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
@@ -34,11 +43,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
-  if (res.status === 401) {
-    // token is invalid or its user no longer exists: log out
-    localStorage.removeItem("relay_token");
-    window.location.replace("/");
-    throw new Error("401: unauthorized");
+  if (res.status === 401 || res.status === 403) {
+    // 401: session is invalid. 403: signed in with an email relay doesn't accept
+    const body = await res.json().catch(() => null);
+    const redirect = body?.error === "email_not_allowed" ? "/?error=email_not_allowed" : "/";
+    await auth.signOut(redirect);
+    throw new Error(`${res.status}: ${body?.error ?? "unauthorized"}`);
   }
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);

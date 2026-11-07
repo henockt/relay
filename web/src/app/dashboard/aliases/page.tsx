@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,17 +8,12 @@ import { api, type Alias } from "@/lib/api";
 import AliasCard from "@/components/AliasCard";
 
 export default function AliasesPage() {
-  const router = useRouter();
   const [aliases, setAliases] = useState<Alias[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [label, setLabel] = useState("");
 
   useEffect(() => {
-    if (!localStorage.getItem("relay_token")) {
-      router.replace("/");
-      return;
-    }
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

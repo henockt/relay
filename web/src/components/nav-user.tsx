@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useClerk } from "@clerk/nextjs"
 import {
   Avatar,
   AvatarFallback,
@@ -24,11 +24,10 @@ import { UnfoldMoreIcon, LogoutIcon } from "@hugeicons/core-free-icons"
 
 export function NavUser({ email }: { email: string | null }) {
   const { isMobile } = useSidebar()
-  const router = useRouter()
+  const { signOut } = useClerk()
 
   function logout() {
-    localStorage.removeItem("relay_token")
-    router.replace("/")
+    signOut({ redirectUrl: "/" })
   }
 
   const initials = email ? email[0].toUpperCase() : "?"

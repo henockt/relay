@@ -5,6 +5,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 
+	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/henockt/relay/internal/config"
@@ -40,6 +41,7 @@ func NewServer(
 		replyThreadStore: replyThreadStore,
 		sender:           sender,
 	}
+	clerk.SetKey(cfg.ClerkSecretKey)
 	s.registerRoutes()
 	return s
 }
@@ -63,11 +65,6 @@ func (s *Server) registerRoutes() {
 	s.router.NoRoute(s.proxyToFrontend())
 
 	api := s.router.Group("/api")
-	{
-		authGroup := api.Group("/auth")
-		authGroup.GET("/google", s.handleGoogleLogin)
-		authGroup.GET("/google/callback", s.handleGoogleCallback)
-	}
 
 	// inbound parse
 	api.POST("/webhooks/email", s.handleInboundEmail)

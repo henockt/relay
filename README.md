@@ -35,10 +35,8 @@ Copy `.env.example` to `.env` and fill in the values.
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | Postgres connection string |
-| `JWT_SECRET` | Secret for signing tokens |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `GOOGLE_REDIRECT_URL` | OAuth callback URL |
+| `CLERK_SECRET_KEY` | Clerk secret key, verifies sessions |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key (build arg, baked into the frontend) |
 | `SMTP_DOMAIN` | Domain for alias addresses |
 | `MAILGUN_API_KEY` | Mailgun private API key |
 | `MAILGUN_DOMAIN` | Mailgun sending domain (defaults to `SMTP_DOMAIN`) |
@@ -46,14 +44,10 @@ Copy `.env.example` to `.env` and fill in the values.
 | `MAILGUN_API_BASE` | Mailgun API base URL (use the EU endpoint for EU accounts) |
 | `FRONTEND_URL` | Public URL of the app |
 | `NEXT_PUBLIC_API_URL` | API URL (if backend hosted separately) |
-| `SECURE_COOKIES` | Set to `false` for local dev |
 
 <!-- ## API
 
 ```
-GET    /api/auth/google              initiate Google login
-GET    /api/auth/google/callback     OAuth callback
-
 GET    /api/users/me                 get current user
 DELETE /api/users/me                 delete account
 
